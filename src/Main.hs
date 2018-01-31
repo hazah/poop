@@ -4,48 +4,53 @@ module Main where
 import Data.Map
 import Control.Monad.Trans.State
 
+newtype ObjectIdentifier = Identifier Int deriving (Show, Ord, Eq)
+newtype Message = Message String
 
-data Object = Object { objectIdentifier :: Int
-                     , objectMixins :: [Int]
+data Object = Object { objectIdentifier :: ObjectIdentifier
+                     , objectMixins :: [ObjectIdentifier]
                      , objectSlots :: Map String Object
                      } deriving Show
 
-newtype Message = Message String
                        
-data Runtime = Runtime (Map Int Object, Int) deriving Show
+type ObjectMap = Map ObjectIdentifier Object
+type ReferenceMap = Map String Object
+
+data Runtime = Runtime (ObjectMap, ObjectIdentifier) deriving Show
 
 type RuntimeState = State Runtime
 
 
-createObject :: Maybe Int -> [Object] -> RuntimeState Object
+createObject :: Maybe ObjectIdentifier -> [Object] -> RuntimeState Object
 createObject parent arguments = do
-    Runtime (runtime, id) <- get
+    Runtime (runtime, Identifier id) <- get
     
     let mixins = case parent of
                     Nothing -> []
                     Just parentObject -> [parentObject]
     
-    let object = Object { objectIdentifier = id + 1
+    let id' = id + 1
+    let object = Object { objectIdentifier = Identifier id'
                         , objectMixins = mixins
                         , objectSlots = empty
                         }
 
-    put(Runtime (insert (id + 1) object runtime, id + 1))
+    put(Runtime (insert (Identifier id') object runtime, Identifier id'))
 
     return object
+
 
 extendObject :: Object -> [Object] -> RuntimeState Object
-extendObject object arguments = do
-    Runtime (runtime, id) <- get
-    object <- createObject (Just (objectIdentifier object)) arguments
+extendObject base arguments =
+    createObject (Just $ objectIdentifier base) arguments
 
-    return object
 
-getObject :: Int -> RuntimeState (Maybe Object)
+getObject :: ObjectIdentifier -> RuntimeState (Maybe Object)
 getObject id = do
     Runtime (runtime, _) <- get
     return $ Data.Map.lookup id runtime
     
+
 sendMessage :: Message -> Object -> [Object] -> RuntimeState Object
 sendMessage (Message message) reciever arguments = do
     let sendMsg = case message of 
@@ -56,15 +61,20 @@ sendMessage (Message message) reciever arguments = do
 
     return object
 
+
 doTheThings :: RuntimeState ()
-doTheThings = do
-    
+doTheThings = do    
     object <- createObject Nothing []
     klass <- sendMessage (Message "extend") object []
     
+    Runtime (runtime, _) <- get
+    let id = objectIdentifier object
+
+    put(Runtime (insert id object runtime, id))
+
     return ()
 
 
 main :: IO ()
 main =
-    print $ runStateT doTheThings $ Runtime (empty, 0)
+    print $ runStateT doTheThings $ Runtime (empty, Identifier 0)
