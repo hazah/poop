@@ -68,9 +68,16 @@ doTheThings = do
     klass <- sendMessage (Message "extend") object []
     
     Runtime (runtime, _) <- get
+    
     let id = objectIdentifier object
+    let mixins = (objectIdentifier klass) : (objectMixins object)
 
-    put(Runtime (insert id object runtime, id))
+    let modifiedObject = Object { objectIdentifier = id
+                        , objectMixins = mixins
+                        , objectSlots = objectSlots object
+                        }
+
+    put(Runtime (insert id modifiedObject runtime, id))
 
     return ()
 
