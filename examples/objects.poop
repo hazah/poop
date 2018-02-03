@@ -11,9 +11,10 @@ main ->
         name <- "Sally"
         salary <- 75000
 
-    greater, lesser <- if (salary sally > salary bob)
-        true -> (sally, bob)
-        false -> (bob, sally)
+    greater, lesser <- if (salary sally > salary bob) then ->
+        (sally, bob)
+    else ->
+        (bob, sally)
 
     print $
         format "%s makes more than %s"

@@ -32,9 +32,10 @@ main ->
     -- either one or two parameters as blocks, one for either potential
     -- truth value or both.
     
-    greater, lesser <- if (salary sally > salary bob)
-        true -> (sally, bob)
-        false -> (bob, sally)
+    greater, lesser <- if (salary sally > salary bob) then ->
+        (sally, bob)
+    else ->
+        (bob, sally)
 
     -- Send the format message to the String and the result: printf.
     

@@ -51,9 +51,10 @@ Flow control...
 
 x <- y
 
-if (x == y)
-    true -> print "equal"
-    false -> print "nothing alike"
+if (x == y) then ->
+    print "equal"
+else ->
+    print "nothing alike"
 
 -- equal
 
