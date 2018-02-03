@@ -1,9 +1,12 @@
+{-# OPTIONS -Wall #-}
+
 module Main where
 
 
 import Data.Map
 import Control.Monad.Trans
 import Control.Monad.Trans.State
+import Control.Monad.Trans.List
 import Control.Monad.Trans.Maybe
 
 import Text.Show.Pretty
@@ -21,169 +24,206 @@ data Object = Object { objectIdentifier :: ObjectIdentifier
                        
 type ObjectMap = Map ObjectIdentifier Object
 
-data RuntimeState = RuntimeState (ObjectMap, ReferenceMap, ObjectIdentifier) deriving Show
+data ObjectValue
+    = IntValue Int
+    | StringValue String
+    deriving (Show, Ord, Eq)
+
+type ValueMap = Map ObjectValue ObjectIdentifier
+
+data RuntimeState = RuntimeState (ObjectMap, ReferenceMap, ObjectIdentifier, ValueMap) deriving Show
 
 type Runtime = State RuntimeState
 
 
-createObject :: Maybe ObjectIdentifier -> [Object] -> Runtime Object
-createObject parent arguments = do
-    RuntimeState (runtime, reference_map, Identifier id) <- get
-    
-    let mixins = case parent of
-                    Nothing -> []
-                    Just parentObject -> [parentObject]
+putObject :: Maybe ObjectIdentifier -> [ObjectIdentifier] -> ReferenceMap -> Runtime ObjectIdentifier
+putObject parentId mixins properties = do
+    RuntimeState (runtime, referenceMap, Identifier id, valueMap) <- get
     
     let id' = id + 1
-    let object = Object { objectIdentifier = Identifier id'
-                        , objectMixins = mixins
-                        , objectSlots = empty
+    let mixins' = case parentId of
+                    Nothing -> mixins
+                    Just parentMixin -> [parentMixin] ++ mixins
+    let objectId = Identifier id'
+    let object = Object { objectIdentifier = objectId
+                        , objectMixins = mixins'
+                        , objectSlots = properties
                         }
+    let runtime' = insert objectId object runtime
 
-    put(RuntimeState (insert (Identifier id') object runtime, reference_map, Identifier id'))
+    put $ RuntimeState (runtime', referenceMap, objectId, valueMap)
 
-    return object
+    return objectId
 
 
 getObject :: ObjectIdentifier -> Runtime Object
 getObject id = do
-    RuntimeState (runtime, reference_map, _) <- get
-    
+    RuntimeState (runtime, _, _, _) <- get
+
+    if member id runtime then
+        lookupObjectId id
+    else
+        lookupVoid
+
+
+lookupObjectId :: ObjectIdentifier -> Runtime Object
+lookupObjectId id = do
+    RuntimeState (runtime, _, _, _) <- get
+
     case Data.Map.lookup id runtime of
+        Just object -> return object
+        Nothing -> undefined
+
+
+lookupReference :: String -> Runtime Object
+lookupReference reference = do
+    RuntimeState (_, referenceMap, _, _) <- get
+
+    case Data.Map.lookup reference referenceMap of
+        Just id -> lookupObjectId id
         Nothing -> do
-            Just id' <- return $ Data.Map.lookup "Void" reference_map
-            Just void <- return $ Data.Map.lookup id' runtime
+            let builtInReferences =
+                    [ "Object"
+                    , "Void"
+                    , "Class"
+                    , "String"                    
+                    , "Exception"
+                    , "Variable" ]
 
-            return void
-        
-        Just object ->
-            return object
+            if elem reference builtInReferences
+                then undefined
+                else lookupVoid
 
 
-addReference :: String -> ObjectIdentifier -> Runtime ()
-addReference name id = do
-    RuntimeState (runtime, reference_map, id') <- get
-    put(RuntimeState (runtime, insert name id reference_map, id'))
-    return ()
+lookupObject :: Runtime Object
+lookupObject = lookupReference "Object"
+
+
+lookupVoid :: Runtime Object
+lookupVoid = lookupReference "Void"
+
+
+lookupClass :: Runtime Object
+lookupClass = lookupReference "Class"
+
+
+lookupString :: Runtime Object
+lookupString = lookupReference "String"
+
+
+lookupException :: Runtime Object
+lookupException = lookupReference "Exception"
+
+
+lookupVariable :: Runtime Object
+lookupVariable = lookupReference "Variable"
+
+
+putReference :: String -> ObjectIdentifier -> Runtime ()
+putReference name id = do
+    RuntimeState (runtime, referenceMap, id', valueMap) <- get
+    let referenceMap' = insert name id referenceMap
+    
+    put(RuntimeState (runtime, referenceMap', id', valueMap))
+
+
+putValue :: ObjectValue -> ObjectIdentifier -> Runtime ()
+putValue value id = do
+    RuntimeState (runtime, referenceMap, id', valueMap) <- get
+    let valueMap' = insert value id valueMap
+    
+    put(RuntimeState (runtime, referenceMap, id', valueMap'))
+
     
 
-extendObject :: Object -> [Object] -> Runtime Object
-extendObject base arguments =
-    createObject (Just $ objectIdentifier base) arguments
+insertObject :: Maybe ObjectIdentifier -> [ObjectIdentifier] -> ReferenceMap -> Maybe String -> Runtime ObjectIdentifier
+insertObject parentId mixins properties referenceName = do
+    id <- putObject parentId mixins properties
+
+    case referenceName of
+        Nothing -> return ()
+        Just name ->
+            putReference name id
+
+    return id
 
 
-evaluateMethod :: Object -> [Object] -> Runtime Object
-evaluateMethod object arguments = do
-    return object
+modifyObject :: ObjectIdentifier -> [ObjectIdentifier] -> ReferenceMap -> Runtime ()
+modifyObject id mixins properties = do
+    RuntimeState (runtime, referenceMap, id', valueMap) <- get
+    let object = Object { objectIdentifier = id
+                        , objectMixins = mixins
+                        , objectSlots = properties
+                        }
+    let runtime' = insert id object runtime
+    put(RuntimeState (runtime', referenceMap, id', valueMap))
 
 
-evaluateVariable :: Object -> Runtime Object
-evaluateVariable object = do
-    return object
+addSlot :: ObjectIdentifier -> String -> ObjectIdentifier -> Runtime ()
+addSlot id name slotId = do
+    RuntimeState (runtime, _, _, _) <- get
+    object <- getObject id
 
+    let mixins = objectMixins object
+    let properties = insert name slotId $ objectSlots object
+
+    modifyObject id mixins properties
+    
 
 evaluateObject :: Object -> [Object] -> Runtime Object
 evaluateObject object arguments = do
-    RuntimeState (runtime, reference_map, _) <- get
-    let mixins = objectMixins object
+    void <- lookupVoid
 
-    case Data.Map.lookup "Method" reference_map of
-        Nothing -> undefined
-        Just methodId -> if elem methodId mixins
-            then evaluateMethod object arguments
-            else case Data.Map.lookup "Variable" reference_map of
-                Nothing -> undefined
-                Just variableId -> if elem variableId mixins
-                    then evaluateVariable object
-                    else return object
+    if objectIdentifier object == objectIdentifier void
+        then lookupException
+        else return object
 
 
-addMixins :: Object -> [Object] -> Runtime Object
-addMixins object mixins = do
-    let newMixins = Prelude.map objectIdentifier mixins ++ objectMixins object
-
-    result <- modifyObject object newMixins $ objectSlots object
-    return result
-
-
-addSlots :: Object -> [Object] -> Runtime Object
-addSlots object slots = do
-    return object
-
-
-sendMessage :: Message -> Object -> [Object] -> Runtime Object
-sendMessage (Message message) reciever arguments = do
-    RuntimeState (runtime, reference_map, _) <- get
-
-    case Data.Map.lookup "Void" reference_map of
-        Nothing -> undefined
-        -- Thou shall not send messages to the Void!
-        Just voidId -> if voidId == objectIdentifier reciever then
-                case Data.Map.lookup "VoidMessage" reference_map of
-                    Nothing -> undefined
-                    Just exceptionId -> do
-                        exception <- getObject exceptionId
-                        return exception
-
-            else do
-                let sendMsg = case message of 
-                                "extend" -> extendObject
-                                "addMixins" -> addMixins
-                                "evaluate" -> evaluateObject
-                                otherwise -> undefined
-
-                object <- sendMsg reciever arguments
-
-                return object
-
-
-modifyObject :: Object -> [ObjectIdentifier] -> ReferenceMap -> Runtime Object
-modifyObject object mixins slots = do
-    let modifiedObject = Object { objectIdentifier = objectIdentifier object
-                        , objectMixins = mixins
-                        , objectSlots = slots
-                        }
+createObject :: Object -> [Object] -> Runtime Object
+createObject base arguments = do
+    base' <- evaluateObject base []
+    let parentId = Just $ objectIdentifier base'
     
-    RuntimeState (runtime, reference_map, id) <- get
-    put(RuntimeState (insert (objectIdentifier object) modifiedObject runtime, reference_map, id))
+    id <- insertObject parentId [] empty Nothing
+    getObject id
 
-    return modifiedObject
-    
+
+setupRuntime :: Runtime ()
+setupRuntime = do
+    object <- insertObject Nothing [] empty (Just "Object")
+    void <- insertObject (Just object) [] empty (Just "Void")
+    klass <- insertObject (Just object) [] empty (Just "Class")
+    string <- insertObject (Just klass) [] empty (Just "String")
+    exception <- insertObject (Just klass) [] empty (Just "Exception")
+    variable <- insertObject (Just klass) [] empty (Just "Variable")
+
+    return ()
 
 
 doTheThings :: Runtime ()
 doTheThings = do    
-    object <- createObject Nothing []
-    addReference "Object" $ objectIdentifier object
+    setupRuntime
 
-    klass <- extendObject object []
-    addReference "Class" $ objectIdentifier klass
+    klass <- lookupClass
+    string <- lookupString
+    variable <- lookupVariable
+
+    employee <- createObject klass []
+    putReference "Employee" $ objectIdentifier employee 
+
+    bobObject <- createObject employee []
+    bobVariableName <- createObject string []
+    putValue (StringValue "bob") $ objectIdentifier bobVariableName
     
-    void <- extendObject object []
-    addReference "Void" $ objectIdentifier void
-
-    exception <- extendObject object []
-    addReference "Exception" $ objectIdentifier exception
-
-    voidMessage <- extendObject exception []
-    addReference "VoidMessage" $ objectIdentifier voidMessage
-
-    method <- extendObject object []
-    addReference "Method" $ objectIdentifier method
-
-    variable <- extendObject object []
-    addReference "Variable" $ objectIdentifier variable
-
-    block <- extendObject object []
-    addReference "Block" $ objectIdentifier block
-
-    sendMessage (Message "addMixins") object [klass]
+    bob <- createObject variable []
+    addSlot (objectIdentifier bob) "name" (objectIdentifier bobVariableName)
+    addSlot (objectIdentifier bob) "object" (objectIdentifier bobObject)
 
     return ()
 
 
 initialState :: RuntimeState
-initialState = RuntimeState (empty, empty, Identifier 0)
+initialState = RuntimeState (empty, empty, Identifier 0, empty)
 
 
 main :: IO ()

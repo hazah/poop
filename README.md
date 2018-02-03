@@ -74,6 +74,13 @@ POOP follows a terse principle of simplicity and directness. Its philosophy is u
 
 To assign an object to a `Variable` (which is itself another object) we use the `<-` operator. The variable will have to be sent the `evaluate` message to retrieve the object. This is usually handled by the runtime. To assign a `Block` of code to a variable the assignment arrow switches from `<-` to `->`. With blocks, `evaluate` is sent first to the variable to get to the block, and then a second time to the retrieved block with the applicable arguments. This is also usually handled by the runtime. However, it is possible to work directly with these objects as well, and therefore knowledge of them is more than an implementation detail.
 
+`main -> print "Hello!"` is a syntatic sugar for
+```
+main <- create Block
+    ...
+```
+where `...` is an the internal object state responsible for the `evaluate` response of the block.
+
 Blocks assigned to properties of objects will be used the implementation of methods. Methods are created in response to messages sent to objects. A `Method` is potentially chained if the property used to refer to it exists in the prototypes of the object. To refer to the next corresponding method in a prototype, the method provides the `super` property. And to refer to the receiving object it provides the `self` property
 
 Some other cases where `evaluate` is applicable are expressions. The object created from the expression `2 + 2` is *not* `4`. It is an `Expression` object holding a tree representing the expression. In order to "collapse" this tree into an actual result, `evaluate` is used. In short, `evaluate` is used a *lot*. Furthermore, following the expression evaluation pattern enables one to use the language with the functional paradigm.
