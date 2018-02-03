@@ -19,10 +19,8 @@ The standard `Hello World!` intro
 
 ```
 create Module
-    Main <- main
-
-main ->
-    put "Hello, POOP!!"
+    Main <- put "Hello, POOP!!"
+    
 ```
 
 Getting us some objects...
@@ -50,13 +48,23 @@ bob <- create Employee
 Flow control...
 
 ```
+
+x <- y
+
 if (x == y)
     true -> print "equal"
     false -> print "nothing alike"
 
+-- equal
+
+y <- 5
+x <- 0
+
 while (x /= y) do ->
     print x
     x <- x + 1
+
+-- 01234
 ```
 
 ### Explanations
@@ -75,6 +83,16 @@ In its simplest form `Class` allows for class based OOP. However, its broader pu
 
 Arguments are passed through keywords, for explicit name binding between message and method. This means that control flow can be expressed as simple message sending to objects with blocks as arguments. Evaluating named blocks along with control flow facilitate the procedural pardigm.
 
-Blocks of code, which are objects, can be assigned to variables and then attached to an object. To indicate the block of code that starts the program we send the `create` message to `Module` and assign to that new object's `Main` property a block of code to execute as a method. The runtime system will look through the module objects' properties, when it finds one called `Main` it treats it as a block of code and triggers the beginning of execution of our program. Properties assigned to module objects control what objects are made available to other modules. Otherwise these objects remain private to the module itself. Module objects are used to assemble the execution context object of the whole program. This object gives access to the variables used within blocks as they evaluate. This enables modular programming.
+Blocks of code, which are objects, can be assigned to variables and then attached to an object. To indicate the block of code that starts the program we send the `create` message to `Module` and assign to that new object's `Main` property a block of code to execute as a method. The runtime system will look through the module objects' properties, when it finds one called `Main` it treats it as a block of code and triggers the beginning of execution of our program. Properties assigned to module objects control what objects are made available to other modules. Otherwise these objects remain private to the module itself. Module objects are used to assemble the execution context object of the whole program. This object gives access to the variables used and chained within blocks as they evaluate. This enables modular programming.
 
 Thus POOP programming is multiparadigm expressed in pure object oriented terms.
+
+## Runtime
+
+The runtime is implemented in Haskell, which means the objects are **not** represented by the underlying hardware, instead they are implemented by an abstract data type. Memory is therefore not managed. Instead, all that is managed is the object graph itself. All that is required is inserting or removing objects from this graph. Though strickly not necessary, especially for smaller programs, this graph can be pruned, both manually and automatically. By default, a simple reference counting algorithm removes objects from the graph as soon as all references to this object dissapear from the context object. It is possible to change this behaviour by implementing a different algorithm. Its even possible to completely disable it. This would mean that objects will remain in the graph but will be inaccessible to the code. This is _**not recommended**_ unless some pruning algorithm is invoked as part of the program manually.
+
+There are some objects that the runtime lazily creates on the fly. For instance, objects that are represented by literals are created when they are first encountered. The literal then becomes a built in variable like object that represents its value.
+
+Some objects, like methods, are created for the lifetime of a single expression and are then discarded because they are only relevant for that particular execution context. Since their execution can change this context, new method objects, reflecting these changes, are used for each call.
+
+Therefore, it's quite important to prune the object graph for anything but the most trivial of programs.
