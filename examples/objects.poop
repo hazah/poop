@@ -1,0 +1,20 @@
+create Module
+	Main <- main
+
+
+main ->
+	bob <- create Object
+        name <- "Bob"
+        salary <- 70000
+    
+    sally <- create Object
+        name <- "Sally"
+        salary <- 75000
+
+    greater, lesser <- if (salary sally > salary bob)
+        true -> (sally, bob)
+        false -> (bob, sally)
+
+    print $
+        format "%s makes more than %s"
+            substitutions <- (name greater, name lesser)

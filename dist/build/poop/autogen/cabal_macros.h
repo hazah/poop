@@ -33,6 +33,17 @@
   (major1) == 0 && (major2) == 5 && (minor) <= 6)
 #endif /* MIN_VERSION_containers */
 
+/* package pretty-show-1.6.16 */
+#ifndef VERSION_pretty_show
+#define VERSION_pretty_show "1.6.16"
+#endif /* VERSION_pretty_show */
+#ifndef MIN_VERSION_pretty_show
+#define MIN_VERSION_pretty_show(major1,major2,minor) (\
+  (major1) <  1 || \
+  (major1) == 1 && (major2) <  6 || \
+  (major1) == 1 && (major2) == 6 && (minor) <= 16)
+#endif /* MIN_VERSION_pretty_show */
+
 /* package transformers-0.4.2.0 */
 #ifndef VERSION_transformers
 #define VERSION_transformers "0.4.2.0"
@@ -43,6 +54,17 @@
   (major1) == 0 && (major2) <  4 || \
   (major1) == 0 && (major2) == 4 && (minor) <= 2)
 #endif /* MIN_VERSION_transformers */
+
+/* package mtl-2.2.1 */
+#ifndef VERSION_mtl
+#define VERSION_mtl "2.2.1"
+#endif /* VERSION_mtl */
+#ifndef MIN_VERSION_mtl
+#define MIN_VERSION_mtl(major1,major2,minor) (\
+  (major1) <  2 || \
+  (major1) == 2 && (major2) <  2 || \
+  (major1) == 2 && (major2) == 2 && (minor) <= 1)
+#endif /* MIN_VERSION_mtl */
 
 /* tool alex-3.1.6 */
 #ifndef TOOL_VERSION_alex

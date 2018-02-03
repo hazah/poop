@@ -4,7 +4,8 @@
 -- the module method on it. We pass the locally defined main object
 -- to inform the environment where to begin execution.
 
-module $ Main <- main
+create Module
+	Main <- main
 
 -- Local object used to start execution. We are assigning a block to main
 -- which will be executed when the program begins running

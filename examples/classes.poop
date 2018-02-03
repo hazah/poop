@@ -1,15 +1,15 @@
--- employee.poop
+-- classes.poop
 
-module $ Main <- main
+create Module
+	Main <- main
 
 
--- By sending the extend message to Object, we effectively "inherit" from
--- it. Object, itself is an object acting as a psudo "class". Under the hood,
--- Object is one of potential several other objects used for method delegation.
+-- By sending the create message to Class, we effectively "inherit" from
+-- it. Class, itself is an object acting as a psudo "class". 
 -- The keyword arguments are used to declare attributes of the properties
 -- instance objects using Employee as a class template
 
-Employee <- extend Object
+Employee <- create Class
     name <- Void    -- Default values
     salary <- Void  -- Void ensures that any access results in a fatal error.
 
